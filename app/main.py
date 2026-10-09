@@ -359,6 +359,7 @@ def plan_query(text):
 
 
 MIN_SCORE = float(os.environ.get("MIN_SCORE", "0.25"))
+CLIP_SLICE_BYTES = 2 * 1024 * 1024
 
 
 def hits_from(raw, keep=3):
@@ -600,6 +601,12 @@ class Handler(BaseHTTPRequestHandler):
     def _proxy_clip(self, source):
         """Range-capable proxy so the browser never sees the VSS JWT."""
         rng = self.headers.get("Range")
+        # Serve open-ended ranges ("bytes=N-") in slices: the outer proxies buffer whole
+        # responses, so a full 5–10 MB segment per request stalls the first frame.
+        m = re.match(r"^bytes=(\d+)-$", rng or "")
+        if m:
+            first = int(m.group(1))
+            rng = "bytes=%d-%d" % (first, first + CLIP_SLICE_BYTES - 1)
         try:
             try:
                 up = vss.stream_request(source, rng)

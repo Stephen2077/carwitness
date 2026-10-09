@@ -164,10 +164,11 @@ async function loadFeed(force) {
         <div class="rule-h"><div><div class="n">${esc(r.name_en)}</div><div class="zh">${esc(r.name_zh)}</div></div>
           <div class="c">${r.hits.length ? '● ' + r.hits.length + ' hits' : 'no hits'}</div></div>
         <div class="thumbs">${r.hits.slice(0, 4).map(h => `
-          <video muted loop playsinline preload="metadata" src="${clipUrl(h.source)}" title="${esc((h.description || '').slice(0, 200))}"
-            onmouseenter="this.play()" onmouseleave="this.pause()" data-q="${esc(r.query)}"></video>`).join('')}</div>
+          <video muted loop playsinline preload="none" data-src="${clipUrl(h.source)}" title="${esc((h.description || '').slice(0, 200))}"
+            onmouseenter="loadVideoNow(this); this.play().catch(() => {})" onmouseleave="this.pause()" data-q="${esc(r.query)}"></video>`).join('')}</div>
       </div>`).join('');
     document.querySelectorAll('.thumbs video').forEach(v => v.onclick = () => { $('#q').value = v.dataset.q; run(); });
+    queueVideos($('#feed'));
   } catch (e) {
     $('#feed').innerHTML = `<div class="empty err">Feed error: ${esc(e.message)}</div>`;
   }
@@ -201,7 +202,7 @@ function renderHits() {
   $('#toolbar').hidden = false;
   $('#results').innerHTML = hits.map((h, i) => `
     <div class="card ${selected.has(i) ? 'sel' : ''}" id="card-${i}">
-      <video controls muted playsinline preload="metadata" src="${clipUrl(h.source)}"></video>
+      <video controls muted playsinline preload="none" data-src="${clipUrl(h.source)}"></video>
       <div class="body">
         <div class="meta"><span class="eid">E${i + 1}</span><span class="score">sim ${h.score ?? '–'}</span>
           <span>${esc(h.camera_id || '')}</span><span>${esc(h.location || '')}</span><span>${esc(fmtT(h))}</span><span>${esc(fmtTs(h.timestamp))}</span></div>
@@ -214,10 +215,43 @@ function renderHits() {
         </div>
       </div>
     </div>`).join('');
-  $('#selInfo').textContent = `${selected.size} clip(s) selected as evidence · 已选 ${selected.size} 段作为证据`;
+  updateSelInfo();
+  $('#results').querySelectorAll('video').forEach(v => v.addEventListener('pointerdown', () => loadVideoNow(v)));
+  queueVideos($('#results'));
 }
 
-function toggleSel(i) { state.selected.has(i) ? state.selected.delete(i) : state.selected.add(i); renderHits(); }
+function updateSelInfo() {
+  const n = state.selected.size;
+  $('#selInfo').textContent = `${n} clip(s) selected as evidence · 已选 ${n} 段作为证据`;
+}
+
+// Load clips a couple at a time; a dozen parallel 5–10 MB streams stall behind the proxies.
+const videoQueue = [];
+let videosLoading = 0;
+function queueVideos(root) { root.querySelectorAll('video[data-src]').forEach(v => videoQueue.push(v)); pumpVideos(); }
+function loadVideoNow(v) { if (v.dataset.src) { v.preload = 'auto'; v.src = v.dataset.src; delete v.dataset.src; } }
+function pumpVideos() {
+  while (videosLoading < 2 && videoQueue.length) {
+    const v = videoQueue.shift();
+    if (!v.isConnected || !v.dataset.src) continue;
+    videosLoading++;
+    let done = false;
+    const finish = () => { if (!done) { done = true; videosLoading--; pumpVideos(); } };
+    v.addEventListener('loadeddata', finish, { once: true });
+    v.addEventListener('error', finish, { once: true });
+    setTimeout(finish, 15000);
+    loadVideoNow(v);
+  }
+}
+
+function toggleSel(i) {
+  const on = !state.selected.has(i);
+  on ? state.selected.add(i) : state.selected.delete(i);
+  const card = $('#card-' + i);
+  card.classList.toggle('sel', on);
+  card.querySelector('.row button').textContent = on ? '✓ Evidence 证据' : '+ Evidence 证据';
+  updateSelInfo();
+}
 
 async function loadDet(i) {
   const el = $('#objs-' + i);
@@ -267,7 +301,7 @@ function jump(i) {
   const c = $('#card-' + i); if (!c) return;
   c.scrollIntoView({ behavior: 'smooth', block: 'center' });
   c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
-  const v = c.querySelector('video'); v.currentTime = 0; v.play().catch(() => {});
+  const v = c.querySelector('video'); loadVideoNow(v); v.currentTime = 0; v.play().catch(() => {});
 }
 
 function download(name, obj) {
