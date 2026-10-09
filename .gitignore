@@ -1,0 +1,15 @@
+# team credentials / cluster access — never commit
+*.config
+kubeconfig*
+*-k8s.yaml
+.env*
+
+# python
+__pycache__/
+*.pyc
+
+# local sample footage
+dev/*.mp4
+
+# macOS
+.DS_Store
