@@ -51,10 +51,10 @@ EVENT_TYPES = {
 FEED_RULES = [
     {"id": "ped", "name_en": "Pedestrian in front of a moving vehicle", "name_zh": "行人在行驶车辆前方",
      "query": "pedestrian crossing in front of a moving vehicle", "event_type": "pedestrian-conflict"},
-    {"id": "bike", "name_en": "Cyclist close to a moving car", "name_zh": "骑车人靠近行驶车辆",
-     "query": "cyclist riding close to a moving car", "event_type": "cyclist-conflict"},
-    {"id": "dbl", "name_en": "Vehicle stopped in a travel lane", "name_zh": "车辆停在行车道上",
-     "query": "vehicle double-parked or stopped in a travel lane", "event_type": "double-parked"},
+    {"id": "truck", "name_en": "Truck stopped at the curb", "name_zh": "卡车停靠路边",
+     "query": "delivery truck parked at the curb", "event_type": "curb-stop"},
+    {"id": "taxi", "name_en": "Taxi stopping for a passenger", "name_zh": "出租车停车接客",
+     "query": "yellow taxi stopping to pick up a passenger", "event_type": "curb-stop"},
 ]
 if os.environ.get("FEED_RULES_JSON"):
     FEED_RULES = json.loads(os.environ["FEED_RULES_JSON"])

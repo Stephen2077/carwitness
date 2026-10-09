@@ -141,11 +141,11 @@ async function api(path, body) {
 }
 
 const EXAMPLES = [
-  '白色 SUV 在路口差点撞到行人',
+  '白色 SUV 开过有行人的路口',
+  'white SUV driving through an intersection',
+  '送货卡车停在路边',
   'pedestrian crossing in front of a moving vehicle',
-  '送货卡车停在车道上挡路',
-  'cyclist riding close to a moving car',
-  'taxi stopping at the curb to pick up a passenger',
+  '黄色出租车停车接客',
 ];
 $('#examples').innerHTML = EXAMPLES.map(e => `<span class="chip">${esc(e)}</span>`).join('');
 $('#examples').onclick = (e) => { if (e.target.classList.contains('chip')) { $('#q').value = e.target.textContent; run(); } };
