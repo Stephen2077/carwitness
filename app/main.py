@@ -170,20 +170,23 @@ _ffmpeg_slots = threading.Semaphore(3)
 
 
 def render_media(kind, source):
-    url = vss.stream_url(source)
-    if kind == "thumb":
-        args = [FFMPEG, "-v", "error", "-ss", "1", "-i", url, "-frames:v", "1", "-vf", "scale=480:-2",
-                "-q:v", "5", "-f", "image2", "-c:v", "mjpeg", "pipe:1"]
-        out = subprocess.run(args, capture_output=True, timeout=60, check=True).stdout
-        if not out:
-            raise RuntimeError("ffmpeg produced no thumbnail")
-        return out
-    with tempfile.NamedTemporaryFile(suffix=".mp4") as tmp:
-        args = [FFMPEG, "-v", "error", "-y", "-i", url, "-vf", "scale=640:-2", "-c:v", "libx264",
+    # ffmpeg reads a local copy: the static ffmpeg build can't resolve in-cluster DNS names.
+    with tempfile.NamedTemporaryFile(suffix=".mp4") as src, tempfile.NamedTemporaryFile(suffix=".mp4") as out:
+        with vss.stream_request(source) as up:
+            shutil.copyfileobj(up, src)
+        src.flush()
+        if kind == "thumb":
+            args = [FFMPEG, "-v", "error", "-ss", "1", "-i", src.name, "-frames:v", "1", "-vf", "scale=480:-2",
+                    "-q:v", "5", "-f", "image2", "-c:v", "mjpeg", "pipe:1"]
+            data = subprocess.run(args, capture_output=True, timeout=60, check=True).stdout
+            if not data:
+                raise RuntimeError("ffmpeg produced no thumbnail")
+            return data
+        args = [FFMPEG, "-v", "error", "-y", "-i", src.name, "-vf", "scale=640:-2", "-c:v", "libx264",
                 "-preset", "veryfast", "-crf", "30", "-pix_fmt", "yuv420p", "-an",
-                "-movflags", "+faststart", tmp.name]
+                "-movflags", "+faststart", out.name]
         subprocess.run(args, capture_output=True, timeout=120, check=True)
-        with open(tmp.name, "rb") as f:
+        with open(out.name, "rb") as f:
             return f.read()
 
 
@@ -199,7 +202,9 @@ def media(kind, source):
         with _ffmpeg_slots:
             try:
                 data = render_media(kind, source)
-            except subprocess.CalledProcessError:
+            except urllib.error.HTTPError as e:
+                if e.code not in (401, 403):
+                    raise
                 vss.token(refresh=True)  # the stream URL carries the JWT; it may have expired
                 data = render_media(kind, source)
         if len(_media) > 400:
@@ -695,7 +700,7 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     data = media(kind, q["source"][0]) if FFMPEG else None
                 except Exception as e:
-                    log(kind, "failed:", e)
+                    log(kind, "failed:", e, (getattr(e, "stderr", None) or b"")[-300:])
                     data = None
                 if data is None:
                     if kind == "preview":
