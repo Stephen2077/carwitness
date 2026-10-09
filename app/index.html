@@ -55,6 +55,7 @@
   .meta { display: flex; gap: 8px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
   .meta .eid { color: var(--warn); font-weight: 700; }
   .meta .score { color: var(--accent); }
+  .meta a { color: var(--accent2); text-decoration: none; margin-left: auto; }
   .desc { font-size: 13px; color: #c8d0db; max-height: 6.2em; overflow: hidden; }
   .desc.open { max-height: none; }
   .objs { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -131,6 +132,9 @@ const BASE = (() => { let p = location.pathname; if (/\.[a-z]+$/i.test(p)) p = p
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clipUrl = (src) => BASE + 'api/clip?source=' + encodeURIComponent(src);
+// Small server-made assets: a JPEG poster and a 640p preview, instead of the 5–10 MB 1080p segment.
+const thumbUrl = (src) => BASE + 'api/thumb?source=' + encodeURIComponent(src);
+const previewUrl = (src) => BASE + 'api/preview?source=' + encodeURIComponent(src);
 const fmtT = (h) => (h.start != null ? `${h.start}s–${h.end ?? '?'}s` : '');
 const fmtTs = (t) => String(t || '').replace('T', ' ').replace(/\.\d+.*$/, '');
 
@@ -164,11 +168,10 @@ async function loadFeed(force) {
         <div class="rule-h"><div><div class="n">${esc(r.name_en)}</div><div class="zh">${esc(r.name_zh)}</div></div>
           <div class="c">${r.hits.length ? '● ' + r.hits.length + ' hits' : 'no hits'}</div></div>
         <div class="thumbs">${r.hits.slice(0, 4).map(h => `
-          <video muted loop playsinline preload="none" data-src="${clipUrl(h.source)}" title="${esc((h.description || '').slice(0, 200))}"
-            onmouseenter="loadVideoNow(this); this.play().catch(() => {})" onmouseleave="this.pause()" data-q="${esc(r.query)}"></video>`).join('')}</div>
+          <video muted loop playsinline preload="none" poster="${thumbUrl(h.source)}" src="${previewUrl(h.source)}" title="${esc((h.description || '').slice(0, 200))}"
+            onmouseenter="this.play().catch(() => {})" onmouseleave="this.pause()" data-q="${esc(r.query)}"></video>`).join('')}</div>
       </div>`).join('');
     document.querySelectorAll('.thumbs video').forEach(v => v.onclick = () => { $('#q').value = v.dataset.q; run(); });
-    queueVideos($('#feed'));
   } catch (e) {
     $('#feed').innerHTML = `<div class="empty err">Feed error: ${esc(e.message)}</div>`;
   }
@@ -202,10 +205,10 @@ function renderHits() {
   $('#toolbar').hidden = false;
   $('#results').innerHTML = hits.map((h, i) => `
     <div class="card ${selected.has(i) ? 'sel' : ''}" id="card-${i}">
-      <video controls muted playsinline preload="none" data-src="${clipUrl(h.source)}"></video>
+      <video controls muted playsinline preload="none" poster="${thumbUrl(h.source)}" src="${previewUrl(h.source)}"></video>
       <div class="body">
         <div class="meta"><span class="eid">E${i + 1}</span><span class="score">sim ${h.score ?? '–'}</span>
-          <span>${esc(h.camera_id || '')}</span><span>${esc(h.location || '')}</span><span>${esc(fmtT(h))}</span><span>${esc(fmtTs(h.timestamp))}</span></div>
+          <span>${esc(h.camera_id || '')}</span><span>${esc(h.location || '')}</span><span>${esc(fmtT(h))}</span><span>${esc(fmtTs(h.timestamp))}</span><a href="${clipUrl(h.source)}" target="_blank" rel="noopener">HD</a></div>
         <div class="desc" onclick="this.classList.toggle('open')">${esc(h.description)}</div>
         <div class="objs" id="objs-${i}">${Object.entries(h.objects || {}).map(([k, v]) => `<span>${esc(k)} ×${v}</span>`).join('')}</div>
         <div class="row">
@@ -216,32 +219,11 @@ function renderHits() {
       </div>
     </div>`).join('');
   updateSelInfo();
-  $('#results').querySelectorAll('video').forEach(v => v.addEventListener('pointerdown', () => loadVideoNow(v)));
-  queueVideos($('#results'));
 }
 
 function updateSelInfo() {
   const n = state.selected.size;
   $('#selInfo').textContent = `${n} clip(s) selected as evidence · 已选 ${n} 段作为证据`;
-}
-
-// Load clips a couple at a time; a dozen parallel 5–10 MB streams stall behind the proxies.
-const videoQueue = [];
-let videosLoading = 0;
-function queueVideos(root) { root.querySelectorAll('video[data-src]').forEach(v => videoQueue.push(v)); pumpVideos(); }
-function loadVideoNow(v) { if (v.dataset.src) { v.preload = 'auto'; v.src = v.dataset.src; delete v.dataset.src; } }
-function pumpVideos() {
-  while (videosLoading < 2 && videoQueue.length) {
-    const v = videoQueue.shift();
-    if (!v.isConnected || !v.dataset.src) continue;
-    videosLoading++;
-    let done = false;
-    const finish = () => { if (!done) { done = true; videosLoading--; pumpVideos(); } };
-    v.addEventListener('loadeddata', finish, { once: true });
-    v.addEventListener('error', finish, { once: true });
-    setTimeout(finish, 15000);
-    loadVideoNow(v);
-  }
 }
 
 function toggleSel(i) {
@@ -301,7 +283,7 @@ function jump(i) {
   const c = $('#card-' + i); if (!c) return;
   c.scrollIntoView({ behavior: 'smooth', block: 'center' });
   c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
-  const v = c.querySelector('video'); loadVideoNow(v); v.currentTime = 0; v.play().catch(() => {});
+  const v = c.querySelector('video'); v.currentTime = 0; v.play().catch(() => {});
 }
 
 function download(name, obj) {

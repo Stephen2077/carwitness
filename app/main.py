@@ -14,6 +14,9 @@ Env:
 import json
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 import threading
 import time
 import traceback
@@ -131,9 +134,12 @@ class VSS:
                 return None
             raise
 
+    def stream_url(self, source):
+        return (VSS_URL + "/api/v1/videos/stream?source=" + urllib.parse.quote(source, safe="")
+                + "&token=" + urllib.parse.quote(self.token()))
+
     def stream_request(self, source, range_header=None):
-        url = (VSS_URL + "/api/v1/videos/stream?source=" + urllib.parse.quote(source, safe="")
-               + "&token=" + urllib.parse.quote(self.token()))
+        url = self.stream_url(source)
         h = {"User-Agent": "CarWitness/1.0"}
         if range_header:
             h["Range"] = range_header
@@ -141,6 +147,89 @@ class VSS:
 
 
 vss = VSS()
+
+
+# ----------------------------------------------------------------------------- thumbnails + previews
+# 1080p segments are 5–10 MB each and crawl through the proxies, so the UI shows a JPEG
+# poster and plays a 640p preview. Both are made once with ffmpeg and kept in memory.
+
+def find_ffmpeg():
+    try:
+        import imageio_ffmpeg  # pip wheel with a static ffmpeg (see requirements.txt)
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return shutil.which("ffmpeg")
+
+
+FFMPEG = find_ffmpeg()
+MEDIA_TYPES = {"thumb": "image/jpeg", "preview": "video/mp4"}
+_media = {}
+_media_locks = {}
+_media_guard = threading.Lock()
+_ffmpeg_slots = threading.Semaphore(3)
+
+
+def render_media(kind, source):
+    url = vss.stream_url(source)
+    if kind == "thumb":
+        args = [FFMPEG, "-v", "error", "-ss", "1", "-i", url, "-frames:v", "1", "-vf", "scale=480:-2",
+                "-q:v", "5", "-f", "image2", "-c:v", "mjpeg", "pipe:1"]
+        out = subprocess.run(args, capture_output=True, timeout=60, check=True).stdout
+        if not out:
+            raise RuntimeError("ffmpeg produced no thumbnail")
+        return out
+    with tempfile.NamedTemporaryFile(suffix=".mp4") as tmp:
+        args = [FFMPEG, "-v", "error", "-y", "-i", url, "-vf", "scale=640:-2", "-c:v", "libx264",
+                "-preset", "veryfast", "-crf", "30", "-pix_fmt", "yuv420p", "-an",
+                "-movflags", "+faststart", tmp.name]
+        subprocess.run(args, capture_output=True, timeout=120, check=True)
+        with open(tmp.name, "rb") as f:
+            return f.read()
+
+
+def media(kind, source):
+    key = (kind, source)
+    if key in _media:
+        return _media[key]
+    with _media_guard:
+        lock = _media_locks.setdefault(key, threading.Lock())
+    with lock:  # one ffmpeg per clip even if the browser and prewarm ask at once
+        if key in _media:
+            return _media[key]
+        with _ffmpeg_slots:
+            try:
+                data = render_media(kind, source)
+            except subprocess.CalledProcessError:
+                vss.token(refresh=True)  # the stream URL carries the JWT; it may have expired
+                data = render_media(kind, source)
+        if len(_media) > 400:
+            _media.clear()
+        _media[key] = data
+        return data
+
+
+def prewarm(hits):
+    """Make posters (in parallel) and then previews for clips the UI is about to show."""
+    if not FFMPEG:
+        return
+    sources = [h["source"] for h in hits if h.get("source")]
+
+    def one(kind, src):
+        try:
+            media(kind, src)
+        except Exception as e:
+            log("prewarm", kind, "failed:", e)
+
+    def run():
+        thumbs = [threading.Thread(target=one, args=("thumb", s), daemon=True) for s in sources]
+        for t in thumbs:
+            t.start()
+        for t in thumbs:
+            t.join()
+        for s in sources:
+            one("preview", s)
+
+    threading.Thread(target=run, daemon=True).start()
 
 
 # ----------------------------------------------------------------------------- result normalization
@@ -383,6 +472,7 @@ def do_search(text, top_k=10, min_similarity=0.3):
         c = chunks.get(h["original_video"])
         if c and h["start"] is None:
             h["start"], h["end"] = num(c.get("best_match_start_sec")), num(c.get("best_match_end_sec"))
+    prewarm(hits)
     syn = raw.get("llm_synthesis") or {}
     return {
         "plan": plan,
@@ -508,6 +598,7 @@ def refresh_feed():
         out.append(dict(rule, hits=hits))
     with _feed_lock:
         _feed.update(updated=time.strftime("%H:%M:%S"), rules=out, error=None)
+    prewarm([h for r in out for h in r["hits"]])
 
 
 def feed_loop():
@@ -537,6 +628,38 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _send_media(self, data, ctype):
+        """Serve cached bytes with HTTP Range support (video seeking needs 206)."""
+        total = len(data)
+        m = re.match(r"^bytes=(\d*)-(\d*)$", self.headers.get("Range") or "")
+        start, end, code = 0, total - 1, 200
+        if m and (m.group(1) or m.group(2)):
+            if m.group(1):
+                start = int(m.group(1))
+                end = min(int(m.group(2)), total - 1) if m.group(2) else total - 1
+            else:
+                start = max(0, total - int(m.group(2)))
+            if start > end:
+                self.send_response(416)
+                self.send_header("Content-Range", "bytes */%d" % total)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            code = 206
+        body = data[start:end + 1]
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Cache-Control", "public, max-age=3600")
+        if code == 206:
+            self.send_header("Content-Range", "bytes %d-%d/%d" % (start, end, total))
+        self.end_headers()
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
+
     def _body(self):
         n = int(self.headers.get("Content-Length") or 0)
         return json.loads(self.rfile.read(n) or b"{}")
@@ -561,12 +684,24 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/config":
                 return self._send(200, {"event_types": EVENT_TYPES, "model": LLM_MODEL or None,
                                         "rules": [{k: r.get(k) for k in ("id", "name_en", "name_zh", "query")} for r in FEED_RULES]})
-            if path in ("/api/detections", "/api/clip") and not q.get("source"):
+            if path in ("/api/detections", "/api/clip", "/api/thumb", "/api/preview") and not q.get("source"):
                 return self._send(400, {"error": "missing ?source="})
             if path == "/api/detections":
                 return self._send(200, summarize_detections(vss.detections(q["source"][0])))
             if path == "/api/clip":
                 return self._proxy_clip(q["source"][0])
+            if path in ("/api/thumb", "/api/preview"):
+                kind = path.rsplit("/", 1)[1]
+                try:
+                    data = media(kind, q["source"][0]) if FFMPEG else None
+                except Exception as e:
+                    log(kind, "failed:", e)
+                    data = None
+                if data is None:
+                    if kind == "preview":
+                        return self._proxy_clip(q["source"][0])  # fall back to the original segment
+                    return self._send(404, {"error": "thumbnail unavailable"})
+                return self._send_media(data, MEDIA_TYPES[kind])
             return self._send(404, {"error": "not found"})
         except Exception as e:
             traceback.print_exc()
@@ -648,6 +783,7 @@ def main():
     missing = [k for k in ("VSS_URL", "VSS_USERNAME", "VSS_PASSWORD", "WANDB_API_KEY") if not os.environ.get(k)]
     if missing:
         log("WARNING missing env:", missing)
+    log("ffmpeg:", FFMPEG or "not found (posters off, previews fall back to the original clips)")
     threading.Thread(target=feed_loop, daemon=True).start()
     log("CarWitness listening on :%d" % PORT)
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
