@@ -297,9 +297,17 @@ def _llm_json(system, user, max_tokens=1800):
         "temperature": 0.2,
         "max_tokens": max_tokens,
     }
-    r = http_json("POST", LLM_BASE + "/chat/completions", body, llm_headers(), timeout=120)
-    text = r["choices"][0]["message"]["content"] or ""
-    return parse_json_loose(text)
+    for attempt in (0, 1):
+        r = http_json("POST", LLM_BASE + "/chat/completions", body, llm_headers(), timeout=120)
+        text = r["choices"][0]["message"]["content"] or ""
+        try:
+            return parse_json_loose(text)
+        except ValueError as e:
+            # Models occasionally emit slightly broken JSON; one retry at temperature 0 usually fixes it.
+            if attempt:
+                raise
+            log("LLM JSON parse failed, retrying:", e)
+            body["temperature"] = 0
 
 
 # Trace LLM calls in W&B Weave when the package is installed (optional).

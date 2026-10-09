@@ -88,7 +88,7 @@ VSS_PASSWORD="$(cfg PASSWORD)"
 WANDB_API_KEY="$(env_or_cfg WANDB_API_KEY)"
 WANDB_TEAM="$(env_or_cfg WANDB_TEAM)"
 WANDB_PROJECT="$(env_or_cfg WANDB_PROJECT)"
-LLM_MODEL="${LLM_MODEL:-}"
+LLM_MODEL="${LLM_MODEL:-nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B}"
 
 [[ -n "$VSS_URL" ]] || die "INGRESS_URL not found in $CONFIG_FILE"
 [[ -n "$VSS_PASSWORD" ]] || die "PASSWORD not found in $CONFIG_FILE"

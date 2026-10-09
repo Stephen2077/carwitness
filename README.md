@@ -38,7 +38,7 @@ flowchart LR
 
 - **Ingest (VAST DataEngine):** footage lands in VAST S3. DataEngine functions caption each clip with Cosmos3-Reason, embed it with Cosmos-Embed1 and run YOLO11, and the results are written to VastDB.
 - **App:** a single stdlib-Python server (`app/main.py`) plus one HTML page. There is no build step, so the pod starts from `python:3.12-slim` with the code mounted from a ConfigMap.
-- **LLM:** W&B Inference. The model is chosen automatically from `/v1/models`, or you can pin one with `LLM_MODEL`. If `weave` is installed, calls are traced.
+- **LLM:** NVIDIA Nemotron-3-Ultra (`nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B`) on W&B Inference, so the whole chain from video understanding to report writing runs on NVIDIA models. `deploy.sh` pins it by default; override with `LLM_MODEL`. If `weave` is installed, calls are traced.
 
 ## Tools used
 
