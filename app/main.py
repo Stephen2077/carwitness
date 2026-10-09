@@ -404,17 +404,32 @@ def _llm_json(system, user, max_tokens=1800):
             body["temperature"] = 0
 
 
-# Trace LLM calls in W&B Weave when the package is installed (optional).
+# Trace the agent's steps in W&B Weave when the package is installed (optional).
+WEAVE_URL = None
+
+
+def trace(fn, name):
+    return fn
+
+
 try:
     import weave  # noqa: E402
     if WANDB_API_KEY and WANDB_PROJECT:
         weave.init((WANDB_TEAM + "/" if WANDB_TEAM else "") + WANDB_PROJECT)
-        llm_json = weave.op(name="carwitness_llm")(_llm_json)
-        log("Weave tracing enabled")
-    else:
-        llm_json = _llm_json
-except Exception:  # weave missing or init failed: run without tracing
-    llm_json = _llm_json
+
+        def trace(fn, name):  # noqa: F811
+            try:
+                return weave.op(name=name)(fn)
+            except TypeError:
+                return weave.op(fn)
+
+        if WANDB_TEAM:
+            WEAVE_URL = "https://wandb.ai/%s/%s/weave/traces" % (WANDB_TEAM, WANDB_PROJECT)
+        log("Weave tracing enabled:", WEAVE_URL or WANDB_PROJECT)
+except Exception as e:  # weave missing or init failed: run without tracing
+    log("Weave tracing off:", e)
+
+llm_json = trace(_llm_json, "llm_json")
 
 
 def parse_json_loose(text):
@@ -587,6 +602,12 @@ def do_scene_card(hit):
     return card
 
 
+# One trace per user action in Weave: search -> plan_query -> llm_json, report -> llm_json, ...
+do_search = trace(do_search, "search")
+plan_query = trace(plan_query, "plan_query")
+do_report = trace(do_report, "incident_report")
+do_scene_card = trace(do_scene_card, "av_scene_card")
+
 _feed = {"updated": None, "rules": [], "error": None}
 _feed_lock = threading.Lock()
 
@@ -687,7 +708,7 @@ class Handler(BaseHTTPRequestHandler):
                 with _feed_lock:
                     return self._send(200, dict(_feed))
             if path == "/api/config":
-                return self._send(200, {"event_types": EVENT_TYPES, "model": LLM_MODEL or None,
+                return self._send(200, {"event_types": EVENT_TYPES, "model": LLM_MODEL or None, "weave_url": WEAVE_URL,
                                         "rules": [{k: r.get(k) for k in ("id", "name_en", "name_zh", "query")} for r in FEED_RULES]})
             if path in ("/api/detections", "/api/clip", "/api/thumb", "/api/preview") and not q.get("source"):
                 return self._send(400, {"error": "missing ?source="})
