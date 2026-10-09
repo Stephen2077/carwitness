@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CarWitness 车证</title>
+<style>
+  :root {
+    --bg: #0b0e12; --panel: #12171e; --panel2: #171d26; --line: #232b36;
+    --text: #e6ebf2; --muted: #8b97a8; --accent: #76b900; --accent2: #3ea6ff;
+    --warn: #ffb020; --bad: #ff5d5d; --ok: #3ccf8e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--line);
+           background: linear-gradient(90deg, #0f141a, #0b0e12); position: sticky; top: 0; z-index: 5; }
+  .logo { font-weight: 800; font-size: 20px; letter-spacing: .3px; }
+  .logo b { color: var(--accent); }
+  .tagline { color: var(--muted); font-size: 13px; }
+  .stack { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { font-size: 11px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); white-space: nowrap; }
+  main { max-width: 1320px; margin: 0 auto; padding: 18px 24px 60px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 22px 0 10px; display: flex; align-items: center; gap: 10px; }
+  h2 .live { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); box-shadow: 0 0 8px var(--bad); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .feed { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .rule { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .rule-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .rule-h .n { font-weight: 650; }
+  .rule-h .c { font-size: 12px; color: var(--warn); white-space: nowrap; }
+  .rule .zh { color: var(--muted); font-size: 12px; }
+  .thumbs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .thumbs video { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; background: #000; cursor: pointer; }
+  .searchbar { display: flex; gap: 8px; }
+  .searchbar input { flex: 1; font-size: 16px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line);
+                     background: var(--panel); color: var(--text); outline: none; }
+  .searchbar input:focus { border-color: var(--accent); }
+  button { font: inherit; cursor: pointer; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2);
+           color: var(--text); padding: 10px 14px; }
+  button.primary { background: var(--accent); color: #0b0e12; border-color: var(--accent); font-weight: 700; }
+  button:disabled { opacity: .5; cursor: wait; }
+  .examples { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .examples .chip { cursor: pointer; color: var(--text); }
+  .examples .chip:hover { border-color: var(--accent); }
+  .plan { margin-top: 10px; color: var(--muted); font-size: 13px; min-height: 20px; }
+  .plan code { color: var(--accent2); background: #0f1720; padding: 1px 6px; border-radius: 4px; }
+  .results { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+  .card.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .card.flash { animation: flash 1.2s; }
+  @keyframes flash { 0%, 60% { box-shadow: 0 0 0 3px var(--warn); } }
+  .card video { width: 100%; aspect-ratio: 16/9; background: #000; display: block; }
+  .card .body { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .meta { display: flex; gap: 8px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .meta .eid { color: var(--warn); font-weight: 700; }
+  .meta .score { color: var(--accent); }
+  .desc { font-size: 13px; color: #c8d0db; max-height: 6.2em; overflow: hidden; }
+  .desc.open { max-height: none; }
+  .objs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .objs span { font-size: 11px; background: #0f1720; border: 1px solid #1d2a38; color: var(--accent2); padding: 1px 6px; border-radius: 4px; }
+  .row { display: flex; gap: 6px; margin-top: auto; }
+  .row button { padding: 6px 10px; font-size: 12px; }
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .toolbar .muted { color: var(--muted); font-size: 13px; }
+  .report { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-top: 14px; }
+  .report h3 { margin: 0 0 2px; font-size: 18px; }
+  .report .sub { color: var(--muted); margin-bottom: 12px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } header { flex-wrap: wrap; } }
+  .ev { border-left: 3px solid var(--line); padding: 6px 10px; margin: 8px 0; background: var(--panel2); border-radius: 0 8px 8px 0; }
+  .ev.high { border-color: var(--bad); } .ev.medium { border-color: var(--warn); } .ev.low { border-color: var(--ok); }
+  .ev .t { font-weight: 650; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .badge { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: #1f2732; color: var(--muted); }
+  a.cite { color: var(--warn); cursor: pointer; text-decoration: none; font-weight: 700; }
+  .guard { margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .err { color: var(--bad); margin-top: 8px; }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; width: min(860px, 94vw); padding: 0; }
+  dialog::backdrop { background: rgba(0,0,0,.65); }
+  dialog .dh { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  dialog .dh b { flex: 1; }
+  dialog pre { margin: 0; padding: 14px 16px; max-height: 65vh; overflow: auto; font-size: 12px; color: #cfe3ff; }
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--muted); border-top-color: var(--accent);
+          border-radius: 50%; animation: s 0.8s linear infinite; vertical-align: -2px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .empty { color: var(--muted); padding: 18px; border: 1px dashed var(--line); border-radius: 10px; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="logo">Car<b>Witness</b> 车证</div>
+    <div class="tagline">Ctrl+F for street cameras — find the vehicle event, prove it, report it. 一句话找到车辆事件，附证据出报告。</div>
+  </div>
+  <div class="stack">
+    <span class="chip">VAST DataEngine · VastDB</span><span class="chip">NVIDIA Cosmos3-Reason</span>
+    <span class="chip">Cosmos-Embed1</span><span class="chip">YOLO11</span><span class="chip">W&amp;B Inference</span><span class="chip">CoreWeave</span>
+  </div>
+</header>
+<main>
+  <h2><span class="live"></span>Event feed 事件流 <span id="feedTime" class="chip"></span>
+    <button id="feedRefresh" style="padding:3px 10px;font-size:12px">↻</button></h2>
+  <div id="feed" class="feed"><div class="empty"><span class="spin"></span> Scanning cameras… 正在扫描摄像头…</div></div>
+
+  <h2>Ask 提问</h2>
+  <form class="searchbar" id="f">
+    <input id="q" autocomplete="off" placeholder="例：白色 SUV 在路口差点撞到行人 · e.g. delivery truck stopped in the bike lane">
+    <button class="primary" id="go">Search 搜索</button>
+  </form>
+  <div class="examples" id="examples"></div>
+  <div class="plan" id="plan"></div>
+
+  <div id="toolbar" class="toolbar" hidden>
+    <button class="primary" id="reportBtn">Generate report 生成双语报告</button>
+    <span class="muted" id="selInfo"></span>
+  </div>
+  <div id="report"></div>
+  <div id="results" class="results"></div>
+</main>
+
+<dialog id="dlg">
+  <div class="dh"><b id="dlgTitle">Scene card</b>
+    <button id="dlgDl">Download JSON 下载</button><button id="dlgClose">✕</button></div>
+  <pre id="dlgBody"></pre>
+</dialog>
+
+<script>
+// Works both at /app/ (Ingress) and / (local): all calls are relative to the page.
+const BASE = (() => { let p = location.pathname; if (/\.[a-z]+$/i.test(p)) p = p.replace(/[^/]*$/, ''); return p.endsWith('/') ? p : p + '/'; })();
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clipUrl = (src) => BASE + 'api/clip?source=' + encodeURIComponent(src);
+const fmtT = (h) => (h.start != null ? `${h.start}s–${h.end ?? '?'}s` : '');
+const fmtTs = (t) => String(t || '').replace('T', ' ').replace(/\.\d+.*$/, '');
+
+async function api(path, body) {
+  const r = await fetch(BASE + path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({ error: 'HTTP ' + r.status }));
+  if (!r.ok || j.error) throw new Error(j.error || ('HTTP ' + r.status));
+  return j;
+}
+
+const EXAMPLES = [
+  '白色 SUV 在路口差点撞到行人',
+  'pedestrian crossing in front of a moving vehicle',
+  '送货卡车停在车道上挡路',
+  'cyclist riding close to a moving car',
+  'taxi stopping at the curb to pick up a passenger',
+];
+$('#examples').innerHTML = EXAMPLES.map(e => `<span class="chip">${esc(e)}</span>`).join('');
+$('#examples').onclick = (e) => { if (e.target.classList.contains('chip')) { $('#q').value = e.target.textContent; run(); } };
+
+let state = { question: '', hits: [], selected: new Set() };
+
+// ---------------------------------------------------------------- feed
+async function loadFeed(force) {
+  try {
+    const f = force ? await api('api/feed/refresh', {}) : await api('api/feed');
+    if (!f.updated) { setTimeout(() => loadFeed(), 3000); return; }
+    $('#feedTime').textContent = 'updated ' + f.updated;
+    $('#feed').innerHTML = f.rules.map(r => `
+      <div class="rule">
+        <div class="rule-h"><div><div class="n">${esc(r.name_en)}</div><div class="zh">${esc(r.name_zh)}</div></div>
+          <div class="c">${r.hits.length ? '● ' + r.hits.length + ' hits' : 'no hits'}</div></div>
+        <div class="thumbs">${r.hits.slice(0, 4).map(h => `
+          <video muted loop playsinline preload="metadata" src="${clipUrl(h.source)}" title="${esc((h.description || '').slice(0, 200))}"
+            onmouseenter="this.play()" onmouseleave="this.pause()" data-q="${esc(r.query)}"></video>`).join('')}</div>
+      </div>`).join('');
+    document.querySelectorAll('.thumbs video').forEach(v => v.onclick = () => { $('#q').value = v.dataset.q; run(); });
+  } catch (e) {
+    $('#feed').innerHTML = `<div class="empty err">Feed error: ${esc(e.message)}</div>`;
+  }
+}
+$('#feedRefresh').onclick = () => { $('#feedTime').innerHTML = '<span class="spin"></span>'; loadFeed(true); };
+
+// ---------------------------------------------------------------- search
+$('#f').onsubmit = (e) => { e.preventDefault(); run(); };
+
+async function run() {
+  const q = $('#q').value.trim();
+  if (!q) return;
+  $('#go').disabled = true;
+  $('#plan').innerHTML = '<span class="spin"></span> Understanding request & searching every camera… 理解问题并搜索所有摄像头…';
+  $('#results').innerHTML = ''; $('#report').innerHTML = ''; $('#toolbar').hidden = true;
+  try {
+    const r = await api('api/search', { query: q });
+    state = { question: q, hits: r.hits, selected: new Set(r.hits.slice(0, 4).map((_, i) => i)) };
+    const p = r.plan;
+    $('#plan').innerHTML = `${esc(p.intent_zh || '')} · <code>${esc(p.query_en)}</code> · event <code>${esc(p.event_type)}</code>
+      · ${r.hits.length} clips · ${r.cameras.length || '?'} camera(s) · ${r.elapsed_sec}s`;
+    renderHits();
+  } catch (e) {
+    $('#plan').innerHTML = `<span class="err">Search failed: ${esc(e.message)}</span>`;
+  } finally { $('#go').disabled = false; }
+}
+
+function renderHits() {
+  const { hits, selected } = state;
+  if (!hits.length) { $('#results').innerHTML = '<div class="empty">No matching clips. 没有找到匹配片段——换个说法试试。</div>'; return; }
+  $('#toolbar').hidden = false;
+  $('#results').innerHTML = hits.map((h, i) => `
+    <div class="card ${selected.has(i) ? 'sel' : ''}" id="card-${i}">
+      <video controls muted playsinline preload="metadata" src="${clipUrl(h.source)}"></video>
+      <div class="body">
+        <div class="meta"><span class="eid">E${i + 1}</span><span class="score">sim ${h.score ?? '–'}</span>
+          <span>${esc(h.camera_id || '')}</span><span>${esc(h.location || '')}</span><span>${esc(fmtT(h))}</span><span>${esc(fmtTs(h.timestamp))}</span></div>
+        <div class="desc" onclick="this.classList.toggle('open')">${esc(h.description)}</div>
+        <div class="objs" id="objs-${i}">${Object.entries(h.objects || {}).map(([k, v]) => `<span>${esc(k)} ×${v}</span>`).join('')}</div>
+        <div class="row">
+          <button onclick="toggleSel(${i})">${selected.has(i) ? '✓ Evidence 证据' : '+ Evidence 证据'}</button>
+          <button onclick="sceneCard(${i})">AV scene card 场景卡</button>
+          <button onclick="loadDet(${i})">YOLO</button>
+        </div>
+      </div>
+    </div>`).join('');
+  $('#selInfo').textContent = `${selected.size} clip(s) selected as evidence · 已选 ${selected.size} 段作为证据`;
+}
+
+function toggleSel(i) { state.selected.has(i) ? state.selected.delete(i) : state.selected.add(i); renderHits(); }
+
+async function loadDet(i) {
+  const el = $('#objs-' + i);
+  el.innerHTML = '<span class="spin"></span>';
+  try {
+    const d = await api('api/detections?source=' + encodeURIComponent(state.hits[i].source));
+    const c = Object.entries(d.counts);
+    el.innerHTML = c.length ? c.map(([k, v]) => `<span>${esc(k)} ×${v}</span>`).join('') + `<span>${d.frames} frames</span>`
+                            : '<span>no YOLO detections</span>';
+  } catch (e) { el.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+
+// ---------------------------------------------------------------- report
+$('#reportBtn').onclick = async () => {
+  const picked = [...state.selected].sort((a, b) => a - b);
+  if (!picked.length) return;
+  const hits = picked.map(i => state.hits[i]);
+  $('#reportBtn').disabled = true;
+  $('#report').innerHTML = '<div class="report"><span class="spin"></span> Reading Cosmos descriptions + YOLO detections, writing bilingual report… 正在读取证据并生成报告…</div>';
+  try {
+    const r = await api('api/report', { question: state.question, hits });
+    // Evidence ids in the report are local (E1..En over the picked list); map back to card ids.
+    const map = Object.fromEntries(r.evidence.map((e, k) => [e.id, picked[k]]));
+    const cite = (ids) => (ids || []).map(id => `<a class="cite" onclick="jump(${map[id]})">E${map[id] + 1}</a>`).join(' ');
+    const evs = (lang) => r.events.length ? r.events.map(e => `
+      <div class="ev ${esc(e.risk || '')}"><div class="t"><span class="badge">${esc(e.event_type)}</span>
+        <span class="badge">risk ${esc(e.risk || '?')}</span><span class="badge">conf ${esc(e.confidence || '?')}</span> ${cite(e.evidence)}</div>
+        <div>${esc(lang === 'zh' ? e.summary_zh : e.summary_en)}</div></div>`).join('') : '<div class="ev">—</div>';
+    $('#report').innerHTML = `<div class="report">
+      <h3>${esc(r.title_en)} · ${esc(r.title_zh)}</h3>
+      <div class="sub">Q: ${esc(state.question)} · ${esc(r.generated_at)} · ${esc(r.model || '')}</div>
+      <div class="cols">
+        <div><b>English</b><p>${esc(r.overall_en)}</p>${evs('en')}<p><b>Action:</b> ${esc(r.recommended_action_en || '')}</p></div>
+        <div><b>中文</b><p>${esc(r.overall_zh)}</p>${evs('zh')}<p><b>建议：</b>${esc(r.recommended_action_zh || '')}</p></div>
+      </div>
+      <div class="guard">🛡 Closed event vocabulary · every finding cites a playable clip · ${r.dropped_unsupported} unsupported finding(s) dropped ·
+        no plates or faces. 固定事件词表，每条结论都附可播放片段，无证据的结论自动丢弃。</div>
+      <div class="row" style="margin-top:10px"><button onclick="dlReport()">Download report JSON 下载报告</button></div>
+    </div>`;
+    window._lastReport = r;
+  } catch (e) {
+    $('#report').innerHTML = `<div class="report err">Report failed: ${esc(e.message)}</div>`;
+  } finally { $('#reportBtn').disabled = false; }
+};
+
+function jump(i) {
+  const c = $('#card-' + i); if (!c) return;
+  c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
+  const v = c.querySelector('video'); v.currentTime = 0; v.play().catch(() => {});
+}
+
+function download(name, obj) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
+  a.download = name; a.click();
+}
+function dlReport() { download('carwitness-report.json', window._lastReport); }
+
+// ---------------------------------------------------------------- scene card
+async function sceneCard(i) {
+  $('#dlgTitle').textContent = `AV corner-case scene card · E${i + 1}`;
+  $('#dlgBody').innerHTML = '<span class="spin"></span> Generating… 生成中…';
+  $('#dlg').showModal();
+  try {
+    const c = await api('api/scenecard', { hit: state.hits[i] });
+    window._lastCard = c;
+    $('#dlgBody').textContent = JSON.stringify(c, null, 2);
+  } catch (e) { $('#dlgBody').textContent = 'Failed: ' + e.message; }
+}
+$('#dlgClose').onclick = () => $('#dlg').close();
+$('#dlgDl').onclick = () => window._lastCard && download('carwitness-scene-card.json', window._lastCard);
+
+loadFeed();
+</script>
+</body>
+</html>
