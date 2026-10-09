@@ -4,11 +4,11 @@
 - [ ] **Demo video link:** `https://...` (also paste it into README → Demo video)
 - [ ] **What we built** (paste as-is):
 
-  > CarWitness (车证) is "Ctrl+F for street cameras" for vehicle incidents, built on the VAST + NVIDIA Cosmos video pipeline. An event feed runs alert rules over 10 cameras in New York, San Francisco and Toronto. Anyone can ask in English or Chinese ("白色 SUV 开过有行人的路口") and NVIDIA Nemotron turns the request into a visual search; each matching clip comes with its Cosmos3-Reason description, YOLO11 object counts and a fast 640p preview. Selected clips become a bilingual incident report with a closed event vocabulary, where every finding must cite a real clip and unsupported findings are dropped. Any clip can also be exported as an AV-simulation corner-case scene card in JSON. Where the sample VSS UI returns clips, CarWitness returns a case file that dealers, insurers, fleets and AV teams can act on.
+  > CarWitness (车证) is "Ctrl+F for street cameras" for vehicle incidents, built on the VAST + NVIDIA Cosmos video pipeline. An event feed runs alert rules over 10 cameras in New York, San Francisco and Toronto. Anyone can ask in English or Chinese ("白色 SUV 开过有行人的路口") and NVIDIA Nemotron turns the request into a visual search; each matching clip comes with its Cosmos3-Reason description, YOLO11 object counts and a fast 640p preview. Selected clips become a bilingual incident report with a closed event vocabulary, where every finding must cite a real clip and unsupported findings are dropped. Any clip can also be exported as an AV-simulation corner-case scene card in JSON, and every step is traced in W&B Weave. Where the sample VSS UI returns clips, CarWitness returns a case file that dealers, insurers, fleets and AV teams can act on.
 
 - [ ] **Tools used** (paste as-is):
 
-  > VAST DataEngine, VastDB, VAST S3, NVIDIA Cosmos3-Reason, NVIDIA Cosmos-Embed1, YOLO11, NVIDIA Nemotron-3-Ultra (via W&B Serverless Inference), CoreWeave Kubernetes, ffmpeg, Cursor, Claude Code, OpenAI Codex
+  > VAST DataEngine, VastDB, VAST S3, NVIDIA Cosmos3-Reason, NVIDIA Cosmos-Embed1, YOLO11, NVIDIA Nemotron-3-Ultra (via W&B Serverless Inference), W&B Weave, CoreWeave Kubernetes, ffmpeg, Cursor, Claude Code, OpenAI Codex
 
 - [ ] **Team names + emails:**
   - _Name_ — _email_

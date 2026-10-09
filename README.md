@@ -49,16 +49,17 @@ flowchart LR
   D --- Y[YOLO11<br/>detections]
   C -->|plan query / report / scene card| W[W&B Serverless Inference<br/>NVIDIA Nemotron-3-Ultra]
   C -->|posters + 640p previews| F[ffmpeg in the pod<br/>cached in memory]
-  C -.optional traces.-> WV[W&B Weave]
+  C -->|traces| WV[W&B Weave]
 ```
 
 - **Ingest (VAST DataEngine):** footage lands in VAST S3. DataEngine functions caption each clip with Cosmos3-Reason, embed it with Cosmos-Embed1 and run YOLO11, and the results are written to VastDB.
 - **App:** a single stdlib-Python server (`app/main.py`) plus one HTML page. There is no build step, so the pod starts from `python:3.12-slim` with the code mounted from a ConfigMap.
-- **LLM:** NVIDIA Nemotron-3-Ultra (`nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B`) on W&B Inference, so the whole chain from video understanding to report writing runs on NVIDIA models. `deploy.sh` pins it by default; override with `LLM_MODEL`. If `weave` is installed, calls are traced.
+- **LLM:** NVIDIA Nemotron-3-Ultra (`nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B`) on W&B Inference, so the whole chain from video understanding to report writing runs on NVIDIA models. `deploy.sh` pins it by default; override with `LLM_MODEL`.
+- **Tracing:** every search, query plan, report and scene card is traced in **W&B Weave** (project `vastdata/team-39`), so each conclusion can be followed back through the model calls that produced it.
 
 ## Tools used
 
-VAST DataEngine, VastDB, VAST S3 · NVIDIA Cosmos3-Reason · NVIDIA Cosmos-Embed1 · YOLO11 · NVIDIA Nemotron-3-Ultra on W&B Serverless Inference · CoreWeave Kubernetes · ffmpeg · Cursor · Claude Code · OpenAI Codex
+VAST DataEngine, VastDB, VAST S3 · NVIDIA Cosmos3-Reason · NVIDIA Cosmos-Embed1 · YOLO11 · NVIDIA Nemotron-3-Ultra on W&B Serverless Inference · W&B Weave tracing · CoreWeave Kubernetes · ffmpeg · Cursor · Claude Code · OpenAI Codex
 
 ## How to run
 
