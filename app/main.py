@@ -68,7 +68,8 @@ def log(*a):
 
 def http_json(method, url, body=None, headers=None, timeout=90):
     data = json.dumps(body).encode() if body is not None else None
-    h = {"Accept": "application/json"}
+    # Cloudflare (W&B inference) rejects the default Python-urllib User-Agent with 403.
+    h = {"Accept": "application/json", "User-Agent": "CarWitness/1.0 (+https://github.com/Stephen2077/carwitness)"}
     if data is not None:
         h["Content-Type"] = "application/json"
     h.update(headers or {})
@@ -133,7 +134,9 @@ class VSS:
     def stream_request(self, source, range_header=None):
         url = (VSS_URL + "/api/v1/videos/stream?source=" + urllib.parse.quote(source, safe="")
                + "&token=" + urllib.parse.quote(self.token()))
-        h = {"Range": range_header} if range_header else {}
+        h = {"User-Agent": "CarWitness/1.0"}
+        if range_header:
+            h["Range"] = range_header
         return urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=60)
 
 

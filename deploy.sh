@@ -96,6 +96,12 @@ LLM_MODEL="${LLM_MODEL:-}"
        Export it first:  export WANDB_API_KEY=...   (get it from https://wandb.ai/authorize)"
 [[ "$VSS_URL" =~ ^https?:// ]] || VSS_URL="https://$VSS_URL"
 VSS_URL="${VSS_URL%/}"
+# INGRESS_URL only resolves on the VM, not inside pods: prefer the in-cluster backend Service.
+BACKEND_PORT="$("${K[@]}" get svc video-backend-service -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || true)"
+if [[ -n "$BACKEND_PORT" ]]; then
+  VSS_URL="http://video-backend-service.${NS}.svc.cluster.local:${BACKEND_PORT}"
+  info "VSS backend (in-cluster): $VSS_URL"
+fi
 [[ -n "$WANDB_TEAM" && -n "$WANDB_PROJECT" ]] || echo "WARN: WANDB_TEAM/WANDB_PROJECT not set; inference will run without a project header and Weave tracing is off"
 
 # ---------------------------------------------------------------- ConfigMap (code)
