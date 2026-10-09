@@ -160,6 +160,8 @@ spec:
           args:
             - |
               if [ -f requirements.txt ]; then pip install --no-cache-dir -q -r requirements.txt; fi
+              # Optional W&B Weave tracing; the app runs without it if this fails.
+              pip install --no-cache-dir -q weave || echo "weave not installed; tracing off"
               exec python main.py
           ports:
             - containerPort: ${PORT}
@@ -176,7 +178,7 @@ spec:
             periodSeconds: 5
           livenessProbe:
             httpGet: {path: /health, port: ${PORT}}
-            initialDelaySeconds: 60
+            initialDelaySeconds: 300
             periodSeconds: 20
           resources:
             requests: {cpu: 100m, memory: 256Mi}
@@ -223,7 +225,7 @@ EOF
 # ---------------------------------------------------------------- roll out + verify
 info "Restarting so the pod picks up the new ConfigMap/Secret"
 "${K[@]}" rollout restart "deploy/$APP_NAME"
-if ! "${K[@]}" rollout status "deploy/$APP_NAME" --timeout=180s; then
+if ! "${K[@]}" rollout status "deploy/$APP_NAME" --timeout=300s; then
   echo "Rollout did not finish. Recent pod state and logs:" >&2
   "${K[@]}" get pods -l "app=$APP_NAME" -o wide >&2 || true
   "${K[@]}" logs "deploy/$APP_NAME" --tail=50 >&2 || true
