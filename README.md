@@ -4,7 +4,9 @@
 
 **Ctrl+F for street cameras.** CarWitness does Clearcam-style detection, search and alerts, focused on vehicles. Ask in English or Chinese, get matching clips from every camera, and turn them into an evidence-backed incident report or an AV-simulation scene card. It runs on VAST DataEngine and NVIDIA Cosmos.
 
-Built for the **VAST Builders Challenge NYC**.
+Built for the **VAST Builders Challenge NYC**. Live app: open https://workshop.thecosmoslabs.com → **App** (team 39).
+
+![CarWitness event feed](docs/screenshot.jpg)
 
 ---
 
@@ -16,11 +18,24 @@ Dealers, insurers, fleet operators and AV teams all need to know what happened t
 
 | Feature | Details |
 |---|---|
-| **Event feed** 事件流 | Standing alert rules (pedestrian in front of a moving vehicle, cyclist close to a car, vehicle stopped in a travel lane) re-run against the archive every 5 min. Hover a thumbnail to play it, click it to open the search. Rules can be configured with `FEED_RULES_JSON`. |
-| **Bilingual natural-language search** 双语搜索 | Type something like `白色 SUV 在路口差点撞到行人`. An LLM turns it into a concrete visual English query plus an event type, then VSS semantic search runs over Cosmos-Embed1 vectors on every camera. |
-| **Evidence cards** 证据卡 | Each hit shows a playable clip (proxied, so the browser never sees the VSS token), the Cosmos3-Reason description, similarity score, camera and time window, and YOLO11 object counts. |
+| **Event feed** 事件流 | Standing alert rules (pedestrian in front of a moving vehicle, truck stopped at the curb, taxi stopping for a passenger) re-run against the archive every 5 min across all 10 cameras (New York, San Francisco, Toronto, residential). Hover a thumbnail to play it, click it to open the search. Rules can be configured with `FEED_RULES_JSON`. |
+| **Bilingual natural-language search** 双语搜索 | Type something like `白色 SUV 在路口差点撞到行人`. NVIDIA Nemotron turns it into a concrete visual English query plus an event type, then VSS semantic search runs over Cosmos-Embed1 vectors on every camera. |
+| **Evidence cards** 证据卡 | Each hit shows a JPEG poster and a 640p preview (made once with ffmpeg and cached: ~50 KB instead of the 5–10 MB 1080p segment, with an **HD** link to the original), the Cosmos3-Reason description, similarity score, camera and time window, and YOLO11 object counts. |
 | **Bilingual incident report** 双语报告 | Pick the clips to use as evidence and get an EN + 中文 report. Event types come from a **closed vocabulary** (`pedestrian-conflict`, `cut-in`, `double-parked`, …). Every finding must **cite an evidence clip ID**. A server-side guardrail **drops any finding that is off-vocabulary or cites no real clip** and shows how many it dropped. Clicking a citation jumps to that clip and plays it. |
 | **AV corner-case scene card** 场景卡 | One click turns a real clip into a simulation-ready JSON scenario: actors, maneuvers, environment, conflict point, expected AV behavior and variations to simulate. Unknowns are marked `unknown`, and the card links back to the source clip and evidence. |
+
+## How it differs from the VSS sample UI
+
+The organizers' Video Search & Summary UI is a general-purpose search box: English query in, ranked clips and a free-text summary out. CarWitness uses the same VSS search as its retrieval layer and adds the "insight or action" layer on top:
+
+| | VSS sample UI | CarWitness |
+|---|---|---|
+| Scope | Any video, any question | Vehicle incidents, with a fixed event vocabulary |
+| Mode | You search | Alert rules run on their own (event feed), plus search |
+| Input | English search terms | English or Chinese sentence, interpreted by Nemotron |
+| Output | Clip list + free-text summary | Bilingual incident report: event types, risk, confidence, recommended action |
+| Trust | — | Every finding must cite a clip; unsupported findings are dropped and counted |
+| Downstream | — | AV-simulation scene card (JSON) per clip |
 
 ## Architecture
 
@@ -32,7 +47,8 @@ flowchart LR
   D --- R[Cosmos3-Reason<br/>clip captions]
   D --- E[Cosmos-Embed1<br/>video vectors]
   D --- Y[YOLO11<br/>detections]
-  C -->|plan query / report / scene card| W[W&B Serverless Inference<br/>OpenAI-compatible]
+  C -->|plan query / report / scene card| W[W&B Serverless Inference<br/>NVIDIA Nemotron-3-Ultra]
+  C -->|posters + 640p previews| F[ffmpeg in the pod<br/>cached in memory]
   C -.optional traces.-> WV[W&B Weave]
 ```
 
@@ -42,7 +58,7 @@ flowchart LR
 
 ## Tools used
 
-VAST DataEngine, VastDB, VAST S3 · NVIDIA Cosmos3-Reason · NVIDIA Cosmos-Embed1 · YOLO11 · CoreWeave Kubernetes · W&B Serverless Inference (optionally W&B Weave) · Cursor · Claude Code
+VAST DataEngine, VastDB, VAST S3 · NVIDIA Cosmos3-Reason · NVIDIA Cosmos-Embed1 · YOLO11 · NVIDIA Nemotron-3-Ultra on W&B Serverless Inference · CoreWeave Kubernetes · ffmpeg · Cursor · Claude Code · OpenAI Codex
 
 ## How to run
 
