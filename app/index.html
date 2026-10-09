@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,6 +20,9 @@
   .tagline { color: var(--muted); font-size: 13px; }
   .stack { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
   .chip { font-size: 11px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); white-space: nowrap; }
+  .lang { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; flex: none; }
+  .lang button { border: 0; border-radius: 0; padding: 6px 12px; font-size: 13px; background: transparent; color: var(--muted); }
+  .lang button.on { background: var(--accent); color: #0b0e12; font-weight: 700; }
   main { max-width: 1320px; margin: 0 auto; padding: 18px 24px 60px; }
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 22px 0 10px; display: flex; align-items: center; gap: 10px; }
   h2 .live { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); box-shadow: 0 0 8px var(--bad); animation: pulse 1.6s infinite; }
@@ -29,7 +32,6 @@
   .rule-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
   .rule-h .n { font-weight: 650; }
   .rule-h .c { font-size: 12px; color: var(--warn); white-space: nowrap; }
-  .rule .zh { color: var(--muted); font-size: 12px; }
   .thumbs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .thumbs video { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; background: #000; cursor: pointer; }
   .searchbar { display: flex; gap: 8px; }
@@ -68,8 +70,8 @@
   .report { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-top: 14px; }
   .report h3 { margin: 0 0 2px; font-size: 18px; }
   .report .sub { color: var(--muted); margin-bottom: 12px; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-  @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } header { flex-wrap: wrap; } }
+  .report .body { max-width: 860px; }
+  @media (max-width: 800px) { header { flex-wrap: wrap; } }
   .ev { border-left: 3px solid var(--line); padding: 6px 10px; margin: 8px 0; background: var(--panel2); border-radius: 0 8px 8px 0; }
   .ev.high { border-color: var(--bad); } .ev.medium { border-color: var(--warn); } .ev.low { border-color: var(--ok); }
   .ev .t { font-weight: 650; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -92,29 +94,30 @@
 <body>
 <header>
   <div>
-    <div class="logo">Car<b>Witness</b> 车证</div>
-    <div class="tagline">Ctrl+F for street cameras — find the vehicle event, prove it, report it. 一句话找到车辆事件，附证据出报告。</div>
+    <div class="logo">Car<b>Witness</b> <span data-i18n="brand"></span></div>
+    <div class="tagline" data-i18n="tagline"></div>
   </div>
   <div class="stack">
     <span class="chip">VAST DataEngine · VastDB</span><span class="chip">NVIDIA Cosmos3-Reason</span>
     <span class="chip">Cosmos-Embed1</span><span class="chip">YOLO11</span><span class="chip">W&amp;B Inference</span><span class="chip">CoreWeave</span>
   </div>
+  <div class="lang" id="lang"><button data-l="en">EN</button><button data-l="zh">中文</button></div>
 </header>
 <main>
-  <h2><span class="live"></span>Event feed 事件流 <span id="feedTime" class="chip"></span>
+  <h2><span class="live"></span><span data-i18n="feed"></span> <span id="feedTime" class="chip"></span>
     <button id="feedRefresh" style="padding:3px 10px;font-size:12px">↻</button></h2>
-  <div id="feed" class="feed"><div class="empty"><span class="spin"></span> Scanning cameras… 正在扫描摄像头…</div></div>
+  <div id="feed" class="feed"><div class="empty"><span class="spin"></span> <span data-i18n="scanning"></span></div></div>
 
-  <h2>Ask 提问</h2>
+  <h2 data-i18n="ask"></h2>
   <form class="searchbar" id="f">
-    <input id="q" autocomplete="off" placeholder="例：白色 SUV 在路口差点撞到行人 · e.g. delivery truck stopped in the bike lane">
-    <button class="primary" id="go">Search 搜索</button>
+    <input id="q" autocomplete="off">
+    <button class="primary" id="go" data-i18n="search"></button>
   </form>
   <div class="examples" id="examples"></div>
   <div class="plan" id="plan"></div>
 
   <div id="toolbar" class="toolbar" hidden>
-    <button class="primary" id="reportBtn">Generate report 生成双语报告</button>
+    <button class="primary" id="reportBtn" data-i18n="genReport"></button>
     <span class="muted" id="selInfo"></span>
   </div>
   <div id="report"></div>
@@ -122,8 +125,8 @@
 </main>
 
 <dialog id="dlg">
-  <div class="dh"><b id="dlgTitle">Scene card</b>
-    <button id="dlgDl">Download JSON 下载</button><button id="dlgClose">✕</button></div>
+  <div class="dh"><b id="dlgTitle"></b>
+    <button id="dlgDl" data-i18n="dlJson"></button><button id="dlgClose">✕</button></div>
   <pre id="dlgBody"></pre>
 </dialog>
 
@@ -146,36 +149,112 @@ async function api(path, body) {
   return j;
 }
 
-const EXAMPLES = [
-  '白色 SUV 开过有行人的路口',
-  'white SUV driving through an intersection',
-  '送货卡车停在路边',
-  'pedestrian crossing in front of a moving vehicle',
-  '黄色出租车停车接客',
-];
-$('#examples').innerHTML = EXAMPLES.map(e => `<span class="chip">${esc(e)}</span>`).join('');
+// ---------------------------------------------------------------- language
+// Every UI string comes from here. Clip descriptions come from Cosmos and stay as returned.
+const I18N = {
+  en: {
+    brand: '', tagline: 'Ctrl+F for street cameras — find the vehicle event, prove it, report it.',
+    feed: 'Event feed', scanning: 'Scanning cameras…', ask: 'Ask', search: 'Search',
+    placeholder: 'e.g. white SUV nearly hits a pedestrian at an intersection',
+    examples: ['white SUV driving through an intersection', 'pedestrian crossing in front of a moving vehicle',
+               'delivery truck parked at the curb', 'yellow taxi stopping to pick up a passenger'],
+    genReport: 'Generate report', dlJson: 'Download JSON', updated: 'updated',
+    hits: (n) => n ? `● ${n} hits` : 'no hits', feedErr: 'Feed error',
+    searching: 'Understanding request & searching every camera…', searchErr: 'Search failed',
+    plan: (p, r) => `${esc(p.intent_en || '')} · query <code>${esc(p.query_en)}</code> · event <code>${esc(p.event_type)}</code>
+      · ${r.hits.length} clips · ${r.cameras.length || '?'} camera(s) · ${r.elapsed_sec}s`,
+    noHits: 'No matching clips. Try rephrasing.', sim: 'sim', hd: 'HD',
+    evOn: '✓ Evidence', evOff: '+ Evidence', scene: 'AV scene card',
+    sel: (n) => `${n} clip(s) selected as evidence`, frames: (n) => `${n} frames`, noDet: 'no YOLO detections',
+    obj: (k) => k, evType: (k) => k,
+    writing: 'Reading Cosmos descriptions + YOLO detections, writing the report…', reportErr: 'Report failed',
+    q: 'Q:', action: 'Action:', risk: 'risk', conf: 'conf', level: (v) => v,
+    guard: (n) => `Closed event vocabulary · every finding cites a playable clip · ${n} unsupported finding(s) dropped · no plates or faces.`,
+    weave: 'View trace in W&B Weave ↗', weaveChip: 'W&B Weave traces ↗', dlReport: 'Download report JSON',
+    sceneTitle: (i) => `AV corner-case scene card · E${i}`, generating: 'Generating…', failed: 'Failed: ',
+  },
+  zh: {
+    brand: '车证', tagline: '街头摄像头的 Ctrl+F：一句话找到车辆事件，附证据，出报告。',
+    feed: '事件流', scanning: '正在扫描摄像头…', ask: '提问', search: '搜索',
+    placeholder: '例：白色 SUV 在路口差点撞到行人',
+    examples: ['白色 SUV 开过有行人的路口', '行人在行驶车辆前方横穿马路', '送货卡车停在路边', '黄色出租车停车接客'],
+    genReport: '生成报告', dlJson: '下载 JSON', updated: '更新于',
+    hits: (n) => n ? `● ${n} 条` : '无结果', feedErr: '事件流出错',
+    searching: '正在理解问题并搜索所有摄像头…', searchErr: '搜索失败',
+    plan: (p, r) => `${esc(p.intent_zh || '')} · 检索词 <code>${esc(p.query_en)}</code> · 事件 <code>${esc(EV_ZH[p.event_type] || p.event_type)}</code>
+      · ${r.hits.length} 段片段 · ${r.cameras.length || '?'} 个摄像头 · 用时 ${r.elapsed_sec} 秒`,
+    noHits: '没有找到匹配片段，换个说法试试。', sim: '相似度', hd: '高清',
+    evOn: '✓ 已选证据', evOff: '+ 选为证据', scene: '仿真场景卡',
+    sel: (n) => `已选 ${n} 段作为证据`, frames: (n) => `${n} 帧`, noDet: '未检测到目标',
+    obj: (k) => OBJ_ZH[k] || k, evType: (k) => EV_ZH[k] || k,
+    writing: '正在读取 Cosmos 描述和 YOLO 检测，生成报告…', reportErr: '报告生成失败',
+    q: '问题：', action: '建议：', risk: '风险', conf: '置信度', level: (v) => ({ high: '高', medium: '中', low: '低' })[v] || v,
+    guard: (n) => `固定事件词表 · 每条结论都附可播放片段 · 已丢弃 ${n} 条无证据结论 · 不识别车牌和人脸。`,
+    weave: '在 W&B Weave 查看追踪 ↗', weaveChip: 'W&B Weave 追踪 ↗', dlReport: '下载报告 JSON',
+    sceneTitle: (i) => `自动驾驶仿真场景卡 · E${i}`, generating: '生成中…', failed: '失败：',
+  },
+};
+const EV_ZH = {
+  'pedestrian-conflict': '行人冲突', 'cyclist-conflict': '骑行者冲突', 'near-contact': '车辆险些接触',
+  'double-parked': '违规并排停车', 'curb-stop': '路边停车', 'cut-in': '强行加塞', 'hard-brake': '急刹车',
+  'blocked-crosswalk': '占用人行道或自行车道', 'vehicle-sighting': '目标车辆出现', 'no-event': '无事件',
+};
+const OBJ_ZH = {
+  car: '汽车', person: '行人', truck: '卡车', bus: '公交车', bicycle: '自行车', motorcycle: '摩托车',
+  'traffic light': '红绿灯', 'stop sign': '停车标志', 'fire hydrant': '消防栓',
+};
+let lang = 'en';
+try { if (localStorage.getItem('cw-lang') === 'zh') lang = 'zh'; } catch (e) {}
+const t = (k) => I18N[lang][k];
+
+function applyLang() {
+  document.documentElement.lang = lang === 'zh' ? 'zh' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('#lang button').forEach(b => b.classList.toggle('on', b.dataset.l === lang));
+  $('#q').placeholder = t('placeholder');
+  $('#examples').innerHTML = t('examples').map(e => `<span class="chip">${esc(e)}</span>`).join('');
+  if ($('#weaveChip')) $('#weaveChip').textContent = t('weaveChip');
+  // Re-render whatever is already on screen from the data we have; no new requests.
+  if (lastFeed) renderFeed(lastFeed);
+  if (lastSearch) renderPlan(lastSearch);
+  if (state.hits.length) renderHits();
+  if (window._lastReport) renderReport();
+  if ($('#dlg').open && dlgIndex != null) $('#dlgTitle').textContent = t('sceneTitle')(dlgIndex + 1);
+}
+$('#lang').onclick = (e) => {
+  const l = e.target.dataset && e.target.dataset.l;
+  if (!l || l === lang) return;
+  lang = l;
+  try { localStorage.setItem('cw-lang', l); } catch (e) {}
+  applyLang();
+};
 $('#examples').onclick = (e) => { if (e.target.classList.contains('chip')) { $('#q').value = e.target.textContent; run(); } };
 
 let state = { question: '', hits: [], selected: new Set() };
+let lastFeed = null, lastSearch = null, dlgIndex = null;
 
 // ---------------------------------------------------------------- feed
 async function loadFeed(force) {
   try {
     const f = force ? await api('api/feed/refresh', {}) : await api('api/feed');
     if (!f.updated) { setTimeout(() => loadFeed(), 3000); return; }
-    $('#feedTime').textContent = 'updated ' + f.updated;
-    $('#feed').innerHTML = f.rules.map(r => `
-      <div class="rule">
-        <div class="rule-h"><div><div class="n">${esc(r.name_en)}</div><div class="zh">${esc(r.name_zh)}</div></div>
-          <div class="c">${r.hits.length ? '● ' + r.hits.length + ' hits' : 'no hits'}</div></div>
-        <div class="thumbs">${r.hits.slice(0, 4).map(h => `
-          <video muted loop playsinline preload="none" poster="${thumbUrl(h.source)}" src="${previewUrl(h.source)}" title="${esc((h.description || '').slice(0, 200))}"
-            onmouseenter="this.play().catch(() => {})" onmouseleave="this.pause()" data-q="${esc(r.query)}"></video>`).join('')}</div>
-      </div>`).join('');
-    document.querySelectorAll('.thumbs video').forEach(v => v.onclick = () => { $('#q').value = v.dataset.q; run(); });
+    lastFeed = f;
+    renderFeed(f);
   } catch (e) {
-    $('#feed').innerHTML = `<div class="empty err">Feed error: ${esc(e.message)}</div>`;
+    $('#feed').innerHTML = `<div class="empty err">${esc(t('feedErr'))}: ${esc(e.message)}</div>`;
   }
+}
+function renderFeed(f) {
+  $('#feedTime').textContent = t('updated') + ' ' + f.updated;
+  $('#feed').innerHTML = f.rules.map(r => `
+    <div class="rule">
+      <div class="rule-h"><div class="n">${esc(lang === 'zh' ? r.name_zh : r.name_en)}</div>
+        <div class="c">${esc(t('hits')(r.hits.length))}</div></div>
+      <div class="thumbs">${r.hits.slice(0, 4).map(h => `
+        <video muted loop playsinline preload="none" poster="${thumbUrl(h.source)}" src="${previewUrl(h.source)}" title="${esc((h.description || '').slice(0, 200))}"
+          onmouseenter="this.play().catch(() => {})" onmouseleave="this.pause()" data-q="${esc(r.query)}"></video>`).join('')}</div>
+    </div>`).join('');
+  document.querySelectorAll('.thumbs video').forEach(v => v.onclick = () => { $('#q').value = v.dataset.q; run(); });
 }
 $('#feedRefresh').onclick = () => { $('#feedTime').innerHTML = '<span class="spin"></span>'; loadFeed(true); };
 
@@ -186,35 +265,37 @@ async function run() {
   const q = $('#q').value.trim();
   if (!q) return;
   $('#go').disabled = true;
-  $('#plan').innerHTML = '<span class="spin"></span> Understanding request & searching every camera… 理解问题并搜索所有摄像头…';
+  $('#plan').innerHTML = `<span class="spin"></span> ${esc(t('searching'))}`;
   $('#results').innerHTML = ''; $('#report').innerHTML = ''; $('#toolbar').hidden = true;
+  window._lastReport = null; lastSearch = null; state.hits = [];
   try {
     const r = await api('api/search', { query: q });
     state = { question: q, hits: r.hits, selected: new Set(r.hits.slice(0, 4).map((_, i) => i)) };
-    const p = r.plan;
-    $('#plan').innerHTML = `${esc(p.intent_zh || '')} · <code>${esc(p.query_en)}</code> · event <code>${esc(p.event_type)}</code>
-      · ${r.hits.length} clips · ${r.cameras.length || '?'} camera(s) · ${r.elapsed_sec}s`;
+    lastSearch = r;
+    renderPlan(r);
     renderHits();
   } catch (e) {
-    $('#plan').innerHTML = `<span class="err">Search failed: ${esc(e.message)}</span>`;
+    $('#plan').innerHTML = `<span class="err">${esc(t('searchErr'))}: ${esc(e.message)}</span>`;
   } finally { $('#go').disabled = false; }
 }
 
+function renderPlan(r) { $('#plan').innerHTML = t('plan')(r.plan, r); }
+
 function renderHits() {
   const { hits, selected } = state;
-  if (!hits.length) { $('#results').innerHTML = '<div class="empty">No matching clips. 没有找到匹配片段——换个说法试试。</div>'; return; }
+  if (!hits.length) { $('#results').innerHTML = `<div class="empty">${esc(t('noHits'))}</div>`; return; }
   $('#toolbar').hidden = false;
   $('#results').innerHTML = hits.map((h, i) => `
     <div class="card ${selected.has(i) ? 'sel' : ''}" id="card-${i}">
       <video controls muted playsinline preload="none" poster="${thumbUrl(h.source)}" src="${previewUrl(h.source)}"></video>
       <div class="body">
-        <div class="meta"><span class="eid">E${i + 1}</span><span class="score">sim ${h.score ?? '–'}</span>
-          <span>${esc(h.camera_id || '')}</span><span>${esc(h.location || '')}</span><span>${esc(fmtT(h))}</span><span>${esc(fmtTs(h.timestamp))}</span><a href="${clipUrl(h.source)}" target="_blank" rel="noopener">HD</a></div>
+        <div class="meta"><span class="eid">E${i + 1}</span><span class="score">${esc(t('sim'))} ${h.score ?? '–'}</span>
+          <span>${esc(h.camera_id || '')}</span><span>${esc(h.location || '')}</span><span>${esc(fmtT(h))}</span><span>${esc(fmtTs(h.timestamp))}</span><a href="${clipUrl(h.source)}" target="_blank" rel="noopener">${esc(t('hd'))}</a></div>
         <div class="desc" onclick="this.classList.toggle('open')">${esc(h.description)}</div>
-        <div class="objs" id="objs-${i}">${Object.entries(h.objects || {}).map(([k, v]) => `<span>${esc(k)} ×${v}</span>`).join('')}</div>
+        <div class="objs" id="objs-${i}">${Object.entries(h.objects || {}).map(([k, v]) => `<span>${esc(t('obj')(k))} ×${v}</span>`).join('')}</div>
         <div class="row">
-          <button onclick="toggleSel(${i})">${selected.has(i) ? '✓ Evidence 证据' : '+ Evidence 证据'}</button>
-          <button onclick="sceneCard(${i})">AV scene card 场景卡</button>
+          <button onclick="toggleSel(${i})">${esc(selected.has(i) ? t('evOn') : t('evOff'))}</button>
+          <button onclick="sceneCard(${i})">${esc(t('scene'))}</button>
           <button onclick="loadDet(${i})">YOLO</button>
         </div>
       </div>
@@ -223,8 +304,7 @@ function renderHits() {
 }
 
 function updateSelInfo() {
-  const n = state.selected.size;
-  $('#selInfo').textContent = `${n} clip(s) selected as evidence · 已选 ${n} 段作为证据`;
+  $('#selInfo').textContent = t('sel')(state.selected.size);
 }
 
 function toggleSel(i) {
@@ -232,7 +312,7 @@ function toggleSel(i) {
   on ? state.selected.add(i) : state.selected.delete(i);
   const card = $('#card-' + i);
   card.classList.toggle('sel', on);
-  card.querySelector('.row button').textContent = on ? '✓ Evidence 证据' : '+ Evidence 证据';
+  card.querySelector('.row button').textContent = on ? t('evOn') : t('evOff');
   updateSelInfo();
 }
 
@@ -242,8 +322,8 @@ async function loadDet(i) {
   try {
     const d = await api('api/detections?source=' + encodeURIComponent(state.hits[i].source));
     const c = Object.entries(d.counts);
-    el.innerHTML = c.length ? c.map(([k, v]) => `<span>${esc(k)} ×${v}</span>`).join('') + `<span>${d.frames} frames</span>`
-                            : '<span>no YOLO detections</span>';
+    el.innerHTML = c.length ? c.map(([k, v]) => `<span>${esc(t('obj')(k))} ×${v}</span>`).join('') + `<span>${esc(t('frames')(d.frames))}</span>`
+                            : `<span>${esc(t('noDet'))}</span>`;
   } catch (e) { el.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
 
@@ -253,33 +333,39 @@ $('#reportBtn').onclick = async () => {
   if (!picked.length) return;
   const hits = picked.map(i => state.hits[i]);
   $('#reportBtn').disabled = true;
-  $('#report').innerHTML = '<div class="report"><span class="spin"></span> Reading Cosmos descriptions + YOLO detections, writing bilingual report… 正在读取证据并生成报告…</div>';
+  $('#report').innerHTML = `<div class="report"><span class="spin"></span> ${esc(t('writing'))}</div>`;
   try {
     const r = await api('api/report', { question: state.question, hits });
-    // Evidence ids in the report are local (E1..En over the picked list); map back to card ids.
-    const map = Object.fromEntries(r.evidence.map((e, k) => [e.id, picked[k]]));
-    const cite = (ids) => (ids || []).map(id => `<a class="cite" onclick="jump(${map[id]})">E${map[id] + 1}</a>`).join(' ');
-    const evs = (lang) => r.events.length ? r.events.map(e => `
-      <div class="ev ${esc(e.risk || '')}"><div class="t"><span class="badge">${esc(e.event_type)}</span>
-        <span class="badge">risk ${esc(e.risk || '?')}</span><span class="badge">conf ${esc(e.confidence || '?')}</span> ${cite(e.evidence)}</div>
-        <div>${esc(lang === 'zh' ? e.summary_zh : e.summary_en)}</div></div>`).join('') : '<div class="ev">—</div>';
-    $('#report').innerHTML = `<div class="report">
-      <h3>${esc(r.title_en)} · ${esc(r.title_zh)}</h3>
-      <div class="sub">Q: ${esc(state.question)} · ${esc(r.generated_at)} · ${esc(r.model || '')}</div>
-      <div class="cols">
-        <div><b>English</b><p>${esc(r.overall_en)}</p>${evs('en')}<p><b>Action:</b> ${esc(r.recommended_action_en || '')}</p></div>
-        <div><b>中文</b><p>${esc(r.overall_zh)}</p>${evs('zh')}<p><b>建议：</b>${esc(r.recommended_action_zh || '')}</p></div>
-      </div>
-      <div class="guard">🛡 Closed event vocabulary · every finding cites a playable clip · ${r.dropped_unsupported} unsupported finding(s) dropped ·
-        no plates or faces. 固定事件词表，每条结论都附可播放片段，无证据的结论自动丢弃。
-        ${cfg.weave_url ? `· <a href="${esc(cfg.weave_url)}" target="_blank" rel="noopener">View trace in W&amp;B Weave ↗</a>` : ''}</div>
-      <div class="row" style="margin-top:10px"><button onclick="dlReport()">Download report JSON 下载报告</button></div>
-    </div>`;
     window._lastReport = r;
+    window._lastPicked = picked;
+    renderReport();
   } catch (e) {
-    $('#report').innerHTML = `<div class="report err">Report failed: ${esc(e.message)}</div>`;
+    $('#report').innerHTML = `<div class="report err">${esc(t('reportErr'))}: ${esc(e.message)}</div>`;
   } finally { $('#reportBtn').disabled = false; }
 };
+
+// One language at a time: the report already holds EN and 中文, so switching never re-calls the LLM.
+function renderReport() {
+  const r = window._lastReport, picked = window._lastPicked, zh = lang === 'zh';
+  // Evidence ids in the report are local (E1..En over the picked list); map back to card ids.
+  const map = Object.fromEntries(r.evidence.map((e, k) => [e.id, picked[k]]));
+  const cite = (ids) => (ids || []).map(id => `<a class="cite" onclick="jump(${map[id]})">E${map[id] + 1}</a>`).join(' ');
+  const evs = r.events.length ? r.events.map(e => `
+    <div class="ev ${esc(e.risk || '')}"><div class="t"><span class="badge">${esc(t('evType')(e.event_type))}</span>
+      <span class="badge">${esc(t('risk'))} ${esc(t('level')(e.risk || '?'))}</span><span class="badge">${esc(t('conf'))} ${esc(t('level')(e.confidence || '?'))}</span> ${cite(e.evidence)}</div>
+      <div>${esc(zh ? e.summary_zh : e.summary_en)}</div></div>`).join('') : '<div class="ev">—</div>';
+  $('#report').innerHTML = `<div class="report">
+    <h3>${esc(zh ? r.title_zh : r.title_en)}</h3>
+    <div class="sub">${esc(t('q'))} ${esc(state.question)} · ${esc(r.generated_at)} · ${esc(r.model || '')}</div>
+    <div class="body">
+      <p>${esc(zh ? r.overall_zh : r.overall_en)}</p>${evs}
+      <p><b>${esc(t('action'))}</b> ${esc(zh ? r.recommended_action_zh : r.recommended_action_en || '')}</p>
+    </div>
+    <div class="guard">🛡 ${esc(t('guard')(r.dropped_unsupported))}
+      ${cfg.weave_url ? `· <a href="${esc(cfg.weave_url)}" target="_blank" rel="noopener">${esc(t('weave'))}</a>` : ''}</div>
+    <div class="row" style="margin-top:10px"><button onclick="dlReport()">${esc(t('dlReport'))}</button></div>
+  </div>`;
+}
 
 function jump(i) {
   const c = $('#card-' + i); if (!c) return;
@@ -297,14 +383,15 @@ function dlReport() { download('carwitness-report.json', window._lastReport); }
 
 // ---------------------------------------------------------------- scene card
 async function sceneCard(i) {
-  $('#dlgTitle').textContent = `AV corner-case scene card · E${i + 1}`;
-  $('#dlgBody').innerHTML = '<span class="spin"></span> Generating… 生成中…';
+  dlgIndex = i;
+  $('#dlgTitle').textContent = t('sceneTitle')(i + 1);
+  $('#dlgBody').innerHTML = `<span class="spin"></span> ${esc(t('generating'))}`;
   $('#dlg').showModal();
   try {
     const c = await api('api/scenecard', { hit: state.hits[i] });
     window._lastCard = c;
     $('#dlgBody').textContent = JSON.stringify(c, null, 2);
-  } catch (e) { $('#dlgBody').textContent = 'Failed: ' + e.message; }
+  } catch (e) { $('#dlgBody').textContent = t('failed') + e.message; }
 }
 $('#dlgClose').onclick = () => $('#dlg').close();
 $('#dlgDl').onclick = () => window._lastCard && download('carwitness-scene-card.json', window._lastCard);
@@ -312,8 +399,9 @@ $('#dlgDl').onclick = () => window._lastCard && download('carwitness-scene-card.
 let cfg = {};
 api('api/config').then(c => {
   cfg = c;
-  if (c.weave_url) $('.stack').insertAdjacentHTML('beforeend', `<a class="chip" href="${esc(c.weave_url)}" target="_blank" rel="noopener">W&amp;B Weave traces ↗</a>`);
+  if (c.weave_url) $('.stack').insertAdjacentHTML('beforeend', `<a class="chip" id="weaveChip" href="${esc(c.weave_url)}" target="_blank" rel="noopener">${esc(t('weaveChip'))}</a>`);
 }).catch(() => {});
+applyLang();
 loadFeed();
 </script>
 </body>
